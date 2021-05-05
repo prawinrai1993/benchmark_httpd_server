@@ -1,0 +1,80 @@
+#ifndef INSTANCESET_H
+#define INSTANCESET_H
+#include <QList>
+#include <QReadWriteLock>
+
+template <typename T>
+class InstanceSet
+{
+public:
+    InstanceSet(){
+
+        //LOG_DEBUG()<< "Call InstanceSet constructor Pointer Addr:"<<this;
+        // pour la creation de l'instance declarer QWriteLocker
+        QWriteLocker locker(&m_selfLock);
+        m_self.append(static_cast<T*>(this));
+    }
+    ~InstanceSet(){
+        //LOG_DEBUG()<< "Call InstanceSet destructor, delete instance : "<<m_self;
+        QWriteLocker locker(&m_selfLock);
+        m_self.removeOne(static_cast<T*>(this));
+    }
+
+    static T* instance(int index=0){
+        //LOG_DEBUG()<< "instance() called";
+        QReadLocker locker(&m_selfLock);
+        if(m_self.isEmpty()){
+            //LOG_ERROR()<< typeid(T).name() << "instance() called before creating any object";
+            return 0;
+        }
+        if(index<0){
+            //LOG_DEBUG()<<"index < 0 : return first instance";
+            return m_self.first();
+        }else if(index < m_self.count()){
+            //LOG_DEBUG()<<"index OK : return correct instance";
+            return m_self.at(index);
+        }else{
+            //LOG_DEBUG()<<"index out of upper bound : return last instance";
+            return m_self.last();
+        }
+    }
+
+    static T* firstInstance(){
+        QReadLocker locker(&m_selfLock);
+        if(m_self.isEmpty()){
+            //LOG_ERROR()<< typeid(T).name() << "firstInstance() called before creating any object";
+            return 0;
+        }else{
+            //LOG_DEBUG()<< "return first instance";
+            return m_self.first();
+        }
+    }
+    static T* lastInstance(){
+        QReadLocker locker(&m_selfLock);
+        if(m_self.isEmpty()){
+            //LOG_ERROR()<< typeid(T).name() << "lastInstance() called before creating any object";
+            return 0;
+        }else{
+            //LOG_DEBUG()<< "return last instance";
+            return m_self.last();
+        }
+    }
+
+    static int instanceCount(){
+        return m_self.count();
+    }
+
+
+private:
+
+    //attributs pour l'instance
+    static QReadWriteLock m_selfLock;
+    static QList<T* > m_self;
+};
+
+template <typename T>
+QList<T* > InstanceSet<T>::m_self;
+template <typename T>
+QReadWriteLock InstanceSet<T>::m_selfLock;
+
+#endif // INSTANCESET_H
